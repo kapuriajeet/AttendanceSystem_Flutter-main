@@ -32,6 +32,7 @@ class _DashboardState extends State<Dashboard> {
   String f_name = "";
   String f_course = "";
   String u_email = "";
+  String f_course_code = "";
 
   @override
   void dispose() {
@@ -101,6 +102,7 @@ class _DashboardState extends State<Dashboard> {
         final retrieved_by_code = json.decode(response1.body);
         f_name = retrieved_by_code[0]['user_name'];
         f_course = retrieved_by_code[0]['subject_name'];
+        f_course_code = retrieved_by_code[0]['subject_code'];
       } else {
         throw Exception('Failed to load post');
       }
@@ -114,6 +116,7 @@ class _DashboardState extends State<Dashboard> {
         'user_name': u_name,
         'user_email_id': u_email,
         'classrooms': f_course,
+        'course_code': f_course_code,
         'faculty_name': f_name
       });
 
@@ -163,7 +166,7 @@ class _DashboardState extends State<Dashboard> {
   // LogOut Logic
   Future logOut(BuildContext context) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.remove('user_name');
+    preferences.remove('user_type');
 
     Fluttertoast.showToast(
         msg: "LogOut Successful",
@@ -178,7 +181,7 @@ class _DashboardState extends State<Dashboard> {
       MaterialPageRoute(
         builder: (context) => HomePage(),
       ),
-    ); // Navigation back to HomePage
+    ); // Navigation back to HomePage()
   }
 
   // Base Widget
@@ -222,7 +225,7 @@ class _DashboardState extends State<Dashboard> {
                   Navigator.of(context).push(MaterialPageRoute(
                     // Passing CLASSROOM NAME to the OtpForm.dart file.
                     builder: (context) =>
-                        OtpForm(value: my_class.classroom.toString()),
+                        OtpForm(value: my_class.course_code.toString()),
                   ));
                 },
               ),

@@ -9,6 +9,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:attendancesystem/Dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'facultyDashboard.dart';
 import 'generateotp.dart';
 
 enum UserRole { faculty, student }
@@ -103,70 +104,68 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     // TODO: implement build
     return Scaffold(
+        appBar: AppBar(
+          title: const Text('Login Here'),
+        ),
         body: SafeArea(
             child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Text(
-          "Login Here",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 30.0),
-        ),
-        TextFormField(
-          controller: user,
-          style: const TextStyle(fontSize: 15.0),
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              border: UnderlineInputBorder(),
-              labelText: 'Enter your user ID: '),
-        ),
-        TextFormField(
-          controller: pass,
-          obscureText: true,
-          enableSuggestions: false,
-          autocorrect: false,
-          style: const TextStyle(fontSize: 15.0),
-          keyboardType: TextInputType.name,
-          decoration: const InputDecoration(
-              border: UnderlineInputBorder(),
-              labelText: 'Enter your password: '),
-        ),
-        ListTile(
-          title: const Text('Faculty'),
-          leading: Radio<UserRole>(
-            value: UserRole.faculty,
-            groupValue: _role,
-            onChanged: (UserRole? value) {
-              setState(() {
-                _role = value;
-                selected_radio = value.toString().split('.').last;
-              });
-            },
-          ),
-        ),
-        ListTile(
-          title: const Text('Student'),
-          leading: Radio<UserRole>(
-            value: UserRole.student,
-            groupValue: _role,
-            onChanged: (UserRole? value) {
-              setState(() {
-                _role = value;
-                selected_radio = value.toString().split('.').last;
-              });
-            },
-          ),
-        ),
-        ElevatedButton(
-            style: ButtonStyle(
-                foregroundColor:
-                    MaterialStateProperty.all<Color>(Colors.black)),
-            onPressed: () {
-              login();
-            },
-            child: const Text('Login'))
-      ],
-    )));
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            TextFormField(
+              controller: user,
+              style: const TextStyle(fontSize: 15.0),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  border: UnderlineInputBorder(),
+                  labelText: 'Enter your user ID: '),
+            ),
+            TextFormField(
+              controller: pass,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              style: const TextStyle(fontSize: 15.0),
+              keyboardType: TextInputType.name,
+              decoration: const InputDecoration(
+                  border: UnderlineInputBorder(),
+                  labelText: 'Enter your password: '),
+            ),
+            ListTile(
+              title: const Text('Faculty'),
+              leading: Radio<UserRole>(
+                value: UserRole.faculty,
+                groupValue: _role,
+                onChanged: (UserRole? value) {
+                  setState(() {
+                    _role = value;
+                    selected_radio = value.toString().split('.').last;
+                  });
+                },
+              ),
+            ),
+            ListTile(
+              title: const Text('Student'),
+              leading: Radio<UserRole>(
+                value: UserRole.student,
+                groupValue: _role,
+                onChanged: (UserRole? value) {
+                  setState(() {
+                    _role = value;
+                    selected_radio = value.toString().split('.').last;
+                  });
+                },
+              ),
+            ),
+            ElevatedButton(
+                style: ButtonStyle(
+                    foregroundColor:
+                        MaterialStateProperty.all<Color>(Colors.black)),
+                onPressed: () {
+                  login();
+                },
+                child: const Text('Login'))
+          ],
+        )));
   }
 }

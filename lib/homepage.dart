@@ -44,7 +44,7 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                 );
               },
-              child: const Text('Login In'))
+              child: const Text('Log In'))
         ],
       ))),
     );

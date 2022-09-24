@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'login.dart';
 
 enum UserRole { faculty, student }
 
@@ -57,6 +58,12 @@ class _SigninPageState extends State<SigninPage> {
               backgroundColor: Colors.green,
               textColor: Colors.white,
               fontSize: 16.0);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LoginPage(),
+            ),
+          ); // Nav to Dashboard
         }
       } else {
         Fluttertoast.showToast(
@@ -84,16 +91,14 @@ class _SigninPageState extends State<SigninPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Register Here'),
+      ),
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
-              "Register Here",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 30.0),
-            ),
             TextFormField(
               controller: user_id,
               style: const TextStyle(fontSize: 15.0),

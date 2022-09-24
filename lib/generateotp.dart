@@ -1,4 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:attendancesystem/homepage.dart';
+import 'package:attendancesystem/lecturesCount.dart';
+import 'package:attendancesystem/student_list.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:otp/otp.dart';
 import 'package:http/http.dart' as http;
 import 'package:attendancesystem/facultyDashboard.dart';
@@ -17,69 +24,358 @@ class OtpGenerator extends StatefulWidget {
   State<OtpGenerator> createState() => _OtpGeneratorState();
 }
 
-class _OtpGeneratorState extends State<OtpGenerator> {
+/** FOR TAB CONTROLLER **/
+class _OtpGeneratorState extends State<OtpGenerator>
+    with SingleTickerProviderStateMixin {
   String textHolder = '';
+
+  // int otp_exp_time = 2; // Timmer Limit
+
+  static const maxSeconds = 59;
+  int seconds = maxSeconds;
+
+  // Here, this represents when will OTP expire
+  int minutes = 5; // Display 2 for 3 min timer | 1 decr
+
+  // Import dart.async Library
+  Timer? timer;
+
+  // FOR DropDown
+  List<String> sessions = ['Theory', 'Practicals'];
+  String? currSelectedItem = 'Theory';
+
+  // To manage tabs based on certain activity with custom controller
+  // To declare variables that will be initialized later
+  // Enforce this variable’s constraints at runtime instead of at compile time
+  TextEditingController lecture_count = TextEditingController();
+  late TabController tab_controller;
+
+  /*** TIMER LOGIC , DISPLAY LIVE TIMER ***/
+
+  @override
+  void startTimer() async {
+    // Exec callback every seconds
+    timer = Timer.periodic(Duration(seconds: 1),
+        (_) // Callback func which repeatedly calls seconds decrement
+        // Callback can be named anything, like (timer) (name) etc.
+        {
+      seconds--;
+      // Callback function visits this section every 1 sec
+      // the following conditions are checked.
+      if (seconds == 0 && minutes > 0) {
+        minutes--; // If seconds = 0 , then decrement minutes by 1
+        seconds = maxSeconds; // reset seconds to 59 sec
+      } else if (minutes == 0 && seconds == 1) {
+        // Trigger Stop at 1th second
+        minutes = 0;
+        seconds = 0;
+        /** Declared a callback function "(_)" above,
+                So using that function's object "_.cancel()" to cancel/stop
+                the callback being performed continuously every 1 sec.
+             **/
+        _.cancel(); // Stopped at 0th second
+
+        // if(timer?.isActive == false){
+        //   /** LOGIC **/
+        // }
+
+        /** CallBack by (_) is now stopped **/
+      }
+
+      // Set the variables to stateful to update the realtime values.
+      setState(() => {seconds, minutes});
+    });
+  }
+
+  // Initializing the TAB controller
+  @override
+  void initState() {
+    super.initState();
+    tab_controller = TabController(length: 2, vsync: this);
+    tab_controller.addListener(() {
+      if (tab_controller.indexIsChanging && tab_controller.index == 1) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    tab_controller.dispose();
+
+    super.dispose();
+  }
+
   generateOtp() {
     setState(() {
       final code = OTP.generateTOTPCodeString(
           'JBSWY3DPEHPK3PXP', DateTime.now().millisecondsSinceEpoch,
-          length: 4, interval: 10);
-
+          length: 4, interval: 60);
       textHolder = code;
     });
   }
 
-  // Future getClassCode() async {
-  //   SharedPreferences preferences = await SharedPreferences.getInstance();
-  //   setState(() {
-  //     class_code = preferences.getString('class_code')!;
-  //   });
-  // }
+  Future endSession() async {
+    var url = "https://gopunchin.000webhostapp.com/end_lec.php";
+
+    try {
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+
+      var response = await http.post(Uri.parse(url), body: {
+        'f_id': preferences.getString('user_id')!,
+        'f_course': widget.value.toString(),
+        'today': DateTime.now().day.toString(),
+        'end': DateTime.now().toString()
+      });
+      var data = json.decode(response.body);
+
+      print("DATA ::>>${data}");
+
+      if (data == "updated") {
+        Fluttertoast.showToast(
+            msg: "SESSION ENDED",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      } else if (data == "error") {
+        Fluttertoast.showToast(
+            msg: "Some Error Occurred",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      }
+    } catch (e) {
+      print(widget.value.toString());
+      Fluttertoast.showToast(
+          msg: "NETWORK ERROR",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
 
   Future submitOtp() async {
-    var url = "https://gopunchin.000webhostapp.com/otp.php";
-    var response = await http.post(Uri.parse(url), body: {'otp': textHolder});
+    var url = "https://gopunchin.000webhostapp.com/pushOtp_and_data.php";
+
+    try {
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+
+      var response = await http.post(Uri.parse(url), body: {
+        'f_id': preferences.getString('user_id')!,
+        'f_name': preferences.getString('user_name')!,
+        'f_course': widget.value.toString(),
+        'lec_type': currSelectedItem,
+        'lec_start': DateTime.now().toString(),
+        /**FOR Database col type DATETIME, convert to string & compare in DB **/
+        'otp': textHolder,
+        'otp_expiry':
+            DateTime.now().add(Duration(minutes: minutes + 1)).toString(),
+        'lecture_count': lecture_count.text
+      });
+
+      var data = json.decode(response.body);
+      if (data == 'Session Started') {
+        Fluttertoast.showToast(
+            msg: "Session Started",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      } else {
+        if (data == 'error') {
+          Fluttertoast.showToast(
+              msg: "Couldnt Load Session",
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.CENTER,
+              timeInSecForIosWeb: 1,
+              backgroundColor: Colors.red,
+              textColor: Colors.white,
+              fontSize: 16.0);
+        }
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+          msg: "Some Network Error Occured",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
+
+  Future<List<Lectures>> listFuture = getLectures();
+
+  static Future<List<Lectures>> getLectures() async {
+    var url = "https://gopunchin.000webhostapp.com/get_lecture_count.php";
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    var response = await http.post(Uri.parse(url), body: {
+      'f_id': preferences.getString('user_id')!,
+    });
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data.map<Lectures>(Lectures.fromJson).toList();
+    } else {
+      throw Exception('Failed to retreive data');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    Widget buildLectures(List<Lectures> lectures) => ListView.builder(
+          itemCount: lectures.length,
+          itemBuilder: (context, index) {
+            final my_lectures = lectures[index];
+            return Card(
+              child: ListTile(
+                title: Text("Lecture No ${my_lectures.lecture}"),
+              ),
+            );
+          },
+        );
     return Scaffold(
       appBar: AppBar(
-        title: Text("Generate OTP for ${widget.value}"),
-      ),
-      body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text("Your OTP will be generated below",
-                textAlign: TextAlign.center, style: TextStyle(fontSize: 25.0)),
-            Text(
-              textHolder,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20.0),
-            ),
-            ElevatedButton(
-                style: ButtonStyle(
-                    alignment: Alignment.center,
-                    foregroundColor:
-                        MaterialStateProperty.all<Color>(Colors.black)),
-                onPressed: () {
-                  generateOtp();
-                  submitOtp();
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (context) => const LoginPage()),
-                  // );
-                },
-                child: const Text('Generate OTP'))
+        title: Text('${widget.value.toString()}'),
+        centerTitle: true,
+        bottom: TabBar(
+          //Creating OWN Controller instead of DefaultTabController
+          controller: tab_controller,
+
+          tabs: [
+            Tab(text: 'OTP', icon: Icon(Icons.arrow_circle_up_rounded)),
+            Tab(text: 'STATS', icon: Icon(Icons.assignment_ind_outlined)),
           ],
         ),
       ),
-    );
-  }
+      body: TabBarView(
+        controller: tab_controller,
+        children: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '$minutes:' + '$seconds',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 50,
+                ),
+              ),
+              TextFormField(
+                controller: lecture_count,
+                style: const TextStyle(fontSize: 15.0),
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    labelText: 'Enter Lectue Number: '),
+              ),
+              Padding(padding: EdgeInsets.all(3)),
+              // Within SizedBox
+              SizedBox(
+                width: 300,
 
-  @override
-  void initState() {
-    super.initState();
+                /** DropdownButton<String> :: FOr NON Decorative style **/
+
+                child: DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  // Passing list to DRopDownButton  // Iterate ove passed list & pick each value
+
+                  // This is needed to display the current selected value onto the screen
+                  // Whenever the screen is created newly.
+
+                  value: currSelectedItem,
+                  items: sessions
+                      .map(
+                          // Map every item in the list to DropdownMenuItem object
+
+                          (item) => DropdownMenuItem<String>(
+                                // Setting value for each item & displaying each element as TextWidget.
+                                value: item,
+                                child: Text(
+                                  item,
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                              )
+
+                          // Sp ultimate return result to above map is a List of DropdownMenuItem
+                          )
+                      .toList(),
+
+                  // The moment onCHANGE is detected, set currSelectedItem=item
+                  // use setState to
+                  // update the screen value.
+                  onChanged: (item) => setState(() => currSelectedItem = item),
+                ),
+              ),
+
+              Text(
+                textHolder,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 50.0),
+              ),
+              ElevatedButton(
+                  style: ButtonStyle(
+                      alignment: Alignment.center,
+                      foregroundColor:
+                          MaterialStateProperty.all<Color>(Colors.black)),
+                  onPressed: () {
+                    generateOtp();
+                    submitOtp();
+                    // startTimer(); // MAking CAll to Start Timer
+                  },
+                  child: const Text('Generate OTP')),
+              ElevatedButton(
+                  style: ButtonStyle(
+                      alignment: Alignment.center,
+                      foregroundColor:
+                          MaterialStateProperty.all<Color>(Colors.white),
+                      backgroundColor:
+                          MaterialStateProperty.all<Color>(Colors.redAccent)),
+                  onPressed: () {
+                    endSession();
+                  },
+                  child: const Text('END SESSION')),
+            ],
+          ),
+          Center(
+            child: FutureBuilder<List<Lectures>>(
+              future: listFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                } else if (snapshot.hasData) {
+                  final lectures = snapshot.data!;
+                  return buildLectures(lectures);
+                } else {
+                  // return Text('hello $user_id_saved_session_value ');
+                  return Text('No Data');
+                  // return const Text('No data');
+                  // HPGE1J
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
